@@ -8,20 +8,21 @@ const char* password = "Your_PASSWORD";
 
 // MQTT Configuration
 const char* mqtt_server = "Your_MQTT_Broker_IP";
-const char* mqtt_username = "Your_MQTT_Username"; // MQTT Username
-const char* mqtt_password = "Your_MQTT_Password"; // MQTT Password
-const char* mqtt_topic = "your/mqtt/topic";       // MQTT topic to turn the relay ON/OFF
+const char* mqtt_username = "Your_MQTT_Username";
+const char* mqtt_password = "Your_MQTT_Password";
+const char* mqtt_topic = "your/mqtt/topic";
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 
 // sACN Configuration
-#define UNIVERSE 1         // DMX Universe to listen to
+#define UNIVERSE 1
 ESPAsyncE131 e131;
 
-// Relay Pin
-int relayPin = D4; // Update this with the pin connected to your relay
+// Pin Definitions
+#define RELAY_PIN D4  // Relay pin
+#define BUTTON_PIN D1 // Button pin for manual control
 
-// Current relay state
+// Relay state
 bool relayState = LOW;
 
 // MQTT Callback Function
@@ -39,28 +40,29 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("]: ");
   Serial.println(message);
 
-  // Change the relay state only if needed
+  // Change relay state only if needed
   if (message == "ON" && relayState == LOW) {
     relayState = HIGH;
-    digitalWrite(relayPin, relayState);
+    digitalWrite(RELAY_PIN, relayState);
     Serial.println("Relay TURNED ON (MQTT Command)");
   } else if (message == "OFF" && relayState == HIGH) {
     relayState = LOW;
-    digitalWrite(relayPin, relayState);
+    digitalWrite(RELAY_PIN, relayState);
     Serial.println("Relay TURNED OFF (MQTT Command)");
   } else {
     Serial.println("Relay state unchanged.");
   }
 }
 
-// Initial Setup
+// Setup Function
 void setup() {
   Serial.begin(115200);
-  Serial.println();
   Serial.println("Initializing ESP8266...");
 
-  pinMode(relayPin, OUTPUT);
-  digitalWrite(relayPin, LOW); // Turn off the relay at startup
+  // Configure pins
+  pinMode(RELAY_PIN, OUTPUT);
+  digitalWrite(RELAY_PIN, LOW); // Turn off relay at startup
+  pinMode(BUTTON_PIN, INPUT_PULLUP); // Button pin with pull-up resistor
 
   // Wi-Fi Setup
   Serial.println("Connecting to Wi-Fi...");
@@ -69,8 +71,7 @@ void setup() {
     delay(1000);
     Serial.print(".");
   }
-  Serial.println();
-  Serial.println("Wi-Fi Connected");
+  Serial.println("\nWi-Fi Connected");
   Serial.print("Assigned IP Address: ");
   Serial.println(WiFi.localIP());
 
@@ -79,7 +80,7 @@ void setup() {
   mqttClient.setCallback(callback);
 
   // sACN Setup
-  if (e131.begin(E131_UNICAST)) { // You can also use E131_MULTICAST if needed
+  if (e131.begin(E131_UNICAST)) {
     Serial.println("sACN Initialized");
     Serial.print("Listening on Universe: ");
     Serial.println(UNIVERSE);
@@ -112,22 +113,35 @@ void loop() {
   // Handle sACN
   if (e131.isEmpty() == false) {
     e131_packet_t packet;
-    e131.pull(&packet); // Fetch sACN packet
+    e131.pull(&packet);
 
-    // Check the first DMX channel value (0-255)
+    // Check DMX channel value (0-255)
     bool newRelayState = packet.property_values[1] > 127 ? HIGH : LOW;
 
-    // Change the relay state only if necessary
+    // Change relay state only if necessary
     if (newRelayState != relayState) {
       relayState = newRelayState;
-      digitalWrite(relayPin, relayState); // Update the relay state
+      digitalWrite(RELAY_PIN, relayState);
       Serial.print("Relay ");
       Serial.print((relayState == HIGH) ? "TURNED ON" : "TURNED OFF");
       Serial.println(" (sACN Command)");
     }
   }
 
-  // General Debugging
+  // Handle button press
+  static bool lastButtonState = HIGH;
+  bool currentButtonState = digitalRead(BUTTON_PIN);
+
+  if (currentButtonState == LOW && lastButtonState == HIGH) { // Button pressed
+    relayState = !relayState; // Toggle relay state
+    digitalWrite(RELAY_PIN, relayState);
+    Serial.print("Relay ");
+    Serial.println((relayState == HIGH) ? "TURNED ON (Button Press)" : "TURNED OFF (Button Press)");
+  }
+
+  lastButtonState = currentButtonState;
+
+  // Debug Wi-Fi connection
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("Wi-Fi disconnected! Attempting to reconnect...");
     WiFi.begin(ssid, password);

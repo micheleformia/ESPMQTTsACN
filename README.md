@@ -44,11 +44,11 @@ Ensure you have the following libraries installed in your Arduino IDE:
 
 Modify the following lines in the code to match your setup:
 
-// Wi-Fi Configuration
+*// Wi-Fi Configuration
 const char* ssid = "Your_SSID";
 const char* password = "Your_PASSWORD";
 
-// MQTT Configuration
+*// MQTT Configuration
 const char* mqtt_server = "Your_MQTT_Broker_IP";
 const char* mqtt_username = "Your_MQTT_Username";
 const char* mqtt_password = "Your_MQTT_Password";

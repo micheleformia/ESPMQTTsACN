@@ -59,7 +59,7 @@ const char* mqtt_topic = "your/mqtt/topic";
 #define UNIVERSE 1 // DMX Universe to listen on
 
 ________________________________________________________________________________________________
-Home Assistant Integration
+## Home Assistant Integration
 
 Add the following configuration to your configuration.yaml file to control the relay via MQTT:
 
